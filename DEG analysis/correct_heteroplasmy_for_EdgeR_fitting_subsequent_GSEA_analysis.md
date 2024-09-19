@@ -236,5 +236,4 @@ p_kegg <- plot_gsea_kegg(filtered_pathways, "C2: KEGG")
 ggsave(filename="plots and tables to present/kegg_GSEA_edgeR_YW2_RM_correct_heteroplasmy.png", plot=p_kegg, width=8, height=5) #width 8 is minimal to keep all pathway names
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to
-prevent printing of the R code that generated the plot.
+
