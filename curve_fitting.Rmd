@@ -1,0 +1,534 @@
+---
+title: "curve_fitting"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r readin,include=FALSE}
+library(readxl)
+
+# Specify the file path of the Excel file
+excel_file <- "/Users/yuanyuan/Library/CloudStorage/Box-Box/1 data/nd5 project/contact inibition/contact inhibition raw datas.xlsx"
+
+
+# Specify the range to read
+range_to_read <- "viable_organized!C4:U11"
+# Read the data from the 'viable_organized' sheet
+data <- read_excel(excel_file, range = range_to_read)
+
+# Transform the data into a data frame
+data <- as.data.frame(data)
+
+
+
+
+
+```
+
+## plot the mean+-sem
+
+```{r plot mean+-sem, echo=TRUE}
+# Load the required libraries
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+
+
+
+# Calculate the mean and standard error for each group at each time point
+summary_data <- data %>%
+  reframe(
+    c1_mean = rowMeans(.[, 2:7], na.rm = TRUE),
+    c1_sem = apply(.[, 2:7], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x)))),
+    c2_mean = rowMeans(.[, 8:13], na.rm = TRUE),
+    c2_sem = apply(.[, 8:13], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x)))),
+    n_mean = rowMeans(.[, 14:19], na.rm = TRUE),
+    n_sem = apply(.[, 14:19], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
+  )
+
+
+
+# Convert row names to a column
+summary_data$Days <- rownames(summary_data)
+rownames(summary_data) <- NULL
+
+# Reshape the data into long format
+summary_data_long <- tidyr::pivot_longer(summary_data, 
+                                         cols = -Days, 
+                                         names_to = c("Group",".value"), 
+                                         names_pattern = "(.*)_(.*)")
+
+# Plot the dot plot
+ggplot(summary_data_long, aes(x = Days, y = mean, color = Group)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - sem, ymax =  mean + sem), width = 0.2) +
+  labs(x = "Days", y = "Cell number(10^5)", color = "Group") +
+  theme_classic()
+
+
+```
+
+## fitting the curves
+```{r fitting the curve, echo=TRUE}
+library(reshape2)
+
+
+# Convert the 'days' column to a factor
+data$days <- factor(data$days)
+
+##need to add column name before reshape
+#change col names
+column_names <- colnames(data)  # Get the current column names as a vector
+
+# Change column names for each group
+column_names[2:7] <- "c1"
+column_names[8:13] <- "c2"
+column_names[14:19] <- "n"
+
+colnames(data) <- column_names  # Assign the updated column names back to the dataframe
+
+
+
+# Reshape the data from wide to long format
+df_long <- data %>%
+  pivot_longer(cols = -days, names_to = "group", values_to = "values") %>%
+  drop_na()
+
+# Convert the 'group' column to a factor
+df_long$group <- factor(df_long$group, levels = c("c1", "c2", "n"))
+
+# Plot the dot plot
+ggplot(df_long, aes(x = days, y = values, color = group)) +
+  geom_point() +
+  scale_color_manual(values = c("c1" = "red", "c2" = "blue", "n" = "green")) +
+  labs(x = "Days", y = "Cell number", color = "Group") +
+  theme_minimal()
+
+
+# Assuming your dataframe is called 'df_long'
+
+# Fit logistic regression models for each group
+groups <- unique(df_long$group)
+
+#change days into numeric (for model fitting)
+df_long$days  <- as.numeric(df_long$days)
+
+
+for (value in groups) {
+  
+  subset_data <- subset(df_long, group == value)
+  
+  # Fit logistic growth model
+  model <- nls(values ~ SSlogis(days, Asym, xmid, scal), data = subset_data)
+  
+  # Print model summary
+  cat("Group:", value, "\n")
+  print(summary(model))
+  cat("\n")
+}
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r original data and fitting curve}
+# Set colors for each group
+group_colors <- c("c1" = "red", "c2" = "blue", "n" = "green")
+
+# Increase the plot margins
+par(mar = c(5, 5, 4, 8))  # Adjust the values as needed
+
+# Plot the original data points and fitted curves for each group
+plot(NULL, xlim = c(min(df_long$days), max(df_long$days)), ylim = c(0, max(df_long$values)),
+     xlab = "Days", ylab = "Cell number(10^5)", main = "Logistic Growth Model")
+
+for (group in groups) {
+  group_data <- df_long[df_long$group == group, ]
+  
+  # Fit logistic growth model for the current group
+  model <- nls(values ~ SSlogis(days, Asym, xmid, scal), data = group_data)
+  
+  if (nrow(group_data) > 0) {
+    # Generate a sequence of x values for plotting
+    x <- seq(min(group_data$days), max(group_data$days), length.out = 100)
+    
+    # Compute the corresponding y values using the logistic growth model parameters
+    y <- predict(model, newdata = data.frame(days = x))
+    
+    # Plot the original data points
+    points(group_data$days, group_data$values, pch = 16, col = adjustcolor(group_colors[group], alpha = 0.2))
+    
+    
+    
+    # Plot the fitted curve
+    lines(x, y, type = "l", col = group_colors[group], lwd = 2)
+  }
+}
+
+# Add legend to the right and outside the plot
+par(xpd = TRUE)  # Allow plotting outside the plot area
+legend("topright", legend = groups, col = group_colors, pch = 16, lwd = 2, bty = "n",
+       xjust = 1, yjust = 1, inset = c(-0.2, 0), xpd = TRUE)
+par(xpd = FALSE)  # Reset the xpd parameter
+
+# Reset the plot margins
+par(mar = c(5, 4, 4, 2.5))  # Adjust the values as needed
+
+
+```
+```{r export fitting image with original data}
+# Install the "colorblindr" package if not already installed
+# install.packages("colorblindr")
+
+# Load the required library
+#library(colorblindr)
+
+
+file_name <- "model_fitting.png"
+
+# Open the PNG graphics device
+png(file_name)
+
+# Define color-blind safe colors
+group_colors <- c("c1" = "#E69F00", "c2" = "#56B4E9", "n" = "#009E73")
+
+# Define dot symbols for each group
+group_symbols <- c("c1" = 1, "c2" = 2, "n" = 3)
+
+# Increase the plot margins
+par(mar = c(5, 5, 4, 8))  # Adjust the values as needed
+
+# Plot the original data points and fitted curves for each group
+plot(NULL, xlim = c(min(df_long$days), max(df_long$days)), ylim = c(0, max(df_long$values)),
+     xlab = "Days", ylab = "Cell number(10^5)", main = "Logistic Growth Model")
+
+for (group in groups) {
+  group_data <- df_long[df_long$group == group, ]
+  
+  # Fit logistic growth model for the current group
+  model <- nls(values ~ SSlogis(days, Asym, xmid, scal), data = group_data)
+  
+  if (nrow(group_data) > 0) {
+    # Generate a sequence of x values for plotting
+    x <- seq(min(group_data$days), max(group_data$days), length.out = 100)
+    
+    # Compute the corresponding y values using the logistic growth model parameters
+    y <- predict(model, newdata = data.frame(days = x))
+    
+    # Plot the original data points with the assigned dot symbol
+    points(group_data$days, group_data$values, pch = group_symbols[group], col = adjustcolor(group_colors[group], alpha = 0.2))
+    
+    # Plot the fitted curve
+    lines(x, y, type = "l", col = group_colors[group], lwd = 2)
+  }
+}
+
+# Add legend to the right and outside the plot
+par(xpd = TRUE)  # Allow plotting outside the plot area
+legend("topright", legend = groups, col = group_colors, pch = group_symbols, lwd = 2, bty = "n",
+       xjust = 1, yjust = 1, inset = c(-0.2, 0), xpd = TRUE)
+par(xpd = FALSE)  # Reset the xpd parameter
+
+# Reset the plot margins
+par(mar = c(5, 4, 4, 2.5))  # Adjust the values as needed
+
+dev.off()
+
+
+```
+
+
+```{r sem and fitted curve commented out not working, include=FALSE}
+# # Load the required libraries
+# library(ggplot2)
+# library(dplyr)
+# library(tidyverse)
+# 
+# # Calculate the mean and standard error for each group at each time point
+# summary_data <- data %>%
+#   reframe(
+#     c1_mean = rowMeans(.[, 2:7], na.rm = TRUE),
+#     c1_sem = apply(.[, 2:7], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x)))),
+#     c2_mean = rowMeans(.[, 8:13], na.rm = TRUE),
+#     c2_sem = apply(.[, 8:13], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x)))),
+#     n_mean = rowMeans(.[, 14:19], na.rm = TRUE),
+#     n_sem = apply(.[, 14:19], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
+#   )
+# 
+# # Convert row names to a column
+# summary_data$Time <- rownames(summary_data)
+# rownames(summary_data) <- NULL
+# 
+# # Reshape the data into long format
+# summary_data_long <- tidyr::pivot_longer(summary_data, 
+#                                          cols = -Time, 
+#                                          names_to = c("Group",".value"), 
+#                                          names_pattern = "(.*)_(.*)")
+# summary_data_long$Time <- as.numeric(summary_data_long$Time)
+# # Fit logistic growth model for each group
+# models <- summary_data_long %>%
+#   group_by(Group) %>%
+#   do(model = nls(mean ~ SSlogis(Time, Asym, xmid, scal), data = .))
+# 
+# # Fit logistic growth model for each group
+# models <- df_long %>%
+#   group_by(group) %>%
+#   do(model = nls(values ~ SSlogis(days, Asym, xmid, scal), data = .))
+#  
+# 
+# 
+# # Generate a sequence of x values for plotting
+# x <- seq(min(summary_data$Time), max(summary_data$Time), length.out = 100)
+# 
+# # Compute the corresponding y values for each group using the logistic growth model parameters
+# fitted_data <- models %>%
+#   group_by(group) %>%
+#   mutate(fitted = predict(., newdata = data.frame(days = x)))
+# 
+# # Plot the mean and SEM with the fitted curves for each group
+# ggplot() +
+#   geom_point(data = summary_data_long, aes(x = Time, y = mean, color = Group)) +
+#   geom_errorbar(data = summary_data_long, aes(x = Time, ymin = mean - sem, ymax = mean + sem, color = Group), width = 0.2) +
+#   geom_line(data = fitted_data, aes(x = Time, y = fitted, color = Group), size = 1) +
+#   labs(x = "Time", y = "Value", color = "Group") +
+#   theme_minimal()
+
+```
+
+
+### Play around for image style
+```{r sem from r base plot }
+# Define a color palette for the groups
+group_palette <- c("c1" = "red", "c2" = "blue", "n" = "green")
+
+# Create the base R plot
+plot(summary_data_long$Days, summary_data_long$mean, type = "p", col = group_palette[summary_data_long$Group], pch = 16,
+     xlab = "Days", ylab = "Cell number(10^5)", main = "Logistic Growth Model")
+
+# Add error bars
+apply(summary_data_long, 1, function(row) {
+  x <- as.numeric(row["Days"])
+  y <- as.numeric(row["mean"])
+  sem <- as.numeric(row["sem"]) 
+  group <- row["Group"]
+  
+  segments(x, y - sem, x, y + sem, col = group_palette[group], lwd = 2)
+})
+
+# Add legend
+legend("topright", legend = unique(summary_data_long$Group), col = group_palette[unique(summary_data_long$Group)], pch = 16)
+
+
+```
+
+```{r export image with r^2 and fitting and original data}
+# Set the file name and path for the exported image
+file_name <- "with_r_square_fitting_datapoints.png"
+
+# Open the PNG graphics device
+png(file_name)
+
+# Increase the plot margins
+par(mar = c(5, 5, 4, 8))  # Adjust the values as needed
+
+# Plot the original data points and fitted curves for each group
+plot(NULL, xlim = c(min(df_long$days), max(df_long$days)), ylim = c(0, max(df_long$values)),
+     xlab = "Days", ylab = "Cell number(10^5)", main = "Logistic Growth Model")
+
+# Initialize the y-coordinate for the R-squared labels
+text_y <- c(40.8,37.8,34.8) # 40.8 is the maximum y value, and assign the 
+
+for (i in 1:length(groups)) {
+  group <- groups[i]
+  group_data <- df_long[df_long$group == group, ]
+  
+  # Fit logistic growth model for the current group
+  model <- tryCatch({
+    nls(values ~ SSlogis(days, Asym, xmid, scal), data = group_data)
+  }, error = function(e) {
+    NULL
+  })
+  
+  if (!is.null(model)) {
+    # Generate a sequence of x values for plotting
+    x <- seq(min(group_data$days), max(group_data$days), length.out = 100)
+    
+    # Compute the corresponding y values using the logistic growth model parameters
+    y <- predict(model, newdata = data.frame(days = x))
+    
+    # Plot the original data points with the assigned dot symbol
+    points(group_data$days, group_data$values, pch = group_symbols[group], col = adjustcolor(group_colors[group], alpha = 0.5))
+    
+    # Plot the fitted curve
+    lines(x, y, type = "l", col = group_colors[group], lwd = 2)
+    
+    # Calculate R-squared
+    ssr <- sum((group_data$values - predict(model))^2)
+    sst <- sum((group_data$values - mean(group_data$values))^2)
+    r_squared <- 1 - ssr / sst
+    
+    # Add group information and R-squared to the left corner of the graph for each group
+    text(x = min(group_data$days), y = text_y[i], 
+         labels = paste0(group, ": R^2 = ", round(r_squared, 2)),
+         pos = 4, adj = c(0, 1), col = group_colors[group])
+    
+  }
+}
+
+# Add legend to the right and outside the plot
+par(xpd = TRUE)  # Allow plotting outside the plot area
+legend("topright", legend = groups, col = group_colors, pch = group_symbols, lwd = 2, bty = "n",
+       xjust = 1, yjust = 1, inset = c(-0.2, 0), xpd = TRUE)
+par(xpd = FALSE)  # Reset the xpd parameter
+
+# Reset the plot margins
+par(mar = c(5, 4, 4, 2.5))  # Adjust the values as needed
+
+# Close the PNG graphics device and save the plot
+dev.off()
+
+```
+
+
+
+
+
+## the final image employed
+## Image exported
+```{r fitting curve and mean point and export}
+# Install the "colorblindr" package if not already installed
+# install.packages("colorblindr")
+
+# Load the required library
+#library(colorblindr)
+# Set the file name and path for the exported image
+file_name <- "with_r_square_fitting_and_mean.png"
+
+# Open the PNG graphics device
+png(file_name,res = 120)
+
+
+
+# Define color-blind safe colors
+group_colors <- c("c1" = "#E69F00", "c2" = "#56B4E9", "n" = "#009E73")
+
+# Define dot symbols for each group
+group_symbols <- c("c1" = 1, "c2" = 16, "n" = 8)
+
+# Increase the plot margins
+par(mar = c(5, 4, 4, 2.5))  # Adjust the values as needed
+
+# Plot the original data points and fitted curves for each group
+plot(NULL, xlim = c(min(df_long$days), max(df_long$days)), ylim = c(0, max(df_long$values)),
+     xlab = "Days", ylab = "Cell number(10^5)", main = "Logistic Growth Model")
+
+# Initialize the y-coordinate for the R-squared labels
+text_y <- c(40.8,37.8,34.8) # 40.8 is the maximum y value, and assign the
+
+for (i in 1:length(groups)) {
+  group <- groups[i]
+  group_data <- df_long[df_long$group == group, ]
+  
+  
+  # Fit logistic growth model for the current group
+  model <- nls(values ~ SSlogis(days, Asym, xmid, scal), data = group_data)
+  
+  if (nrow(group_data) > 0) {
+    # Generate a sequence of x values for plotting
+    x <- seq(min(group_data$days), max(group_data$days), length.out = 100)
+    
+    # Compute the corresponding y values using the logistic growth model parameters
+    y <- predict(model, newdata = data.frame(days = x))
+    
+    # # Plot the original data points with the assigned dot symbol
+    # points(group_data$days, group_data$values, pch = group_symbols[group], col = adjustcolor(group_colors[group], alpha = 0.2))
+    # 
+    # Create the base R plot
+    subset_summary <- summary_data_long[summary_data_long$Group == group, ]
+    points(subset_summary$Days, subset_summary$mean, pch = group_symbols[group],col = adjustcolor(group_colors[group], alpha = 0.5))
+    
+    
+    
+    
+    # Plot the fitted curve
+    lines(x, y, type = "l", col = group_colors[group], lwd = 2)
+    
+    
+    # Calculate R-squared
+    ssr <- sum((group_data$values - predict(model))^2)
+    sst <- sum((group_data$values - mean(group_data$values))^2)
+    r_squared <- 1 - ssr / sst
+    
+    # Add group information and R-squared to the left corner of the graph for each group
+    text(x = min(group_data$days), y = text_y[i], 
+         labels = paste0(group, ": R^2 = ", round(r_squared, 2)),
+         pos = 4, adj = c(0, 1), col = group_colors[group])
+    
+    
+    
+    
+  }
+}
+
+# Add legend to the right and outside the plot
+par(xpd = TRUE)  # Allow plotting outside the plot area
+legend("topright", legend = groups, col = group_colors, pch = group_symbols, lwd = 2, bty = "n",
+       xjust = 1, yjust = 1, inset = c(-0.3, 0), xpd = TRUE)
+par(xpd = FALSE)  # Reset the xpd parameter
+
+# Reset the plot margins
+par(mar = c(5, 4, 4, 2.5))  # Adjust the values as needed
+
+# Close the PNG graphics device and save the plot
+dev.off()
+
+
+```
+
+
+## Model parameters
+
+```{r gnls fitting altogether}
+library(nlme)
+#model <- gnls(values ~ SSlogis(days, Asym, xmid, scal), data = df_long, params=list(Asym ~ group))
+
+
+#Soy=as.data.frame(Soybean)
+fm1 <- gnls(values ~ SSlogis(days, Asym, xmid, scal), df_long)
+summary(fm1)
+fm1$coefficients
+
+
+fm2 <- gnls(values ~ SSlogis(days, Asym, xmid, scal), df_long, 
+            start= list(Asym = c(37, 37,37),
+                        xmid= c(3.54, 3.54,3.54),
+                        scal= c(0.8457,0.8457,0.8457)),
+            params = list(Asym ~ group - 1, 
+                          xmid ~ group - 1, 
+                          scal ~ group - 1))
+summary(fm2)
+fm2$coefficients
+
+summary(anova(fm1, fm2))
+library(emmeans)
+emmeans(fm2, pairwise~group, param="Asym")
+emmeans(fm2, pairwise~group, param="xmid")
+
+
+```
