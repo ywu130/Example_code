@@ -1,3 +1,22 @@
-Cells were stained with 20~nM TMRM and Hoechst33342 as per the manufacturer's instructions. Live imaging of stained cells was performed in phenol red-free complete medium using a LionHeart imaging station (Agilent) at 37~°C with a 100x objective. We captured Z-stacks of a minimum of 25 slices, each 100 nm deep. From each imaging field, subsets of Z-stacks (273 pixels x 293 pixels x 25 slices) containing mitochondria from a single cell were chosen for analysis in ImageJ, following previously established methods \citep{chaudhryPipelineMultidimensionalConfocal2020a}. These selected Z-stacks were considered as 'cell' for later analysis.
+Cells were stained with 20~nM TMRM and Hoechst33342 as per the manufacturer's instructions. Live imaging of stained cells was performed in phenol red-free complete medium using a LionHeart imaging station (Agilent) at 37~°C with a 100x objective.
 
-The cell stacks underwent deconvolution using DeconvolutionLab2 in ImageJ, utilizing a theoretical Point-Spread Function (PSF) produced by the 'PSF generator' plugin. The Richardson-Lucy TV algorithm was applied, with a regularization value of 0.0001 and 30 iterations, consistent with the established method \citep{chaudhryPipelineMultidimensionalConfocal2020a}. Post-deconvolution, the image edges were cropped to mitigate edge effects during deconvolution. The 3D stacks were then converted to 2D images via maximal projection. These 2D images were subsequently analyzed using the 'Mitochondrial Analyzer' plugin to assess cell morphology metrics. The analysis parameters included the 'weighted mean' threshold method, a block size of 1.45 microns, and a C-value of 8.
+We captured Z-stacks of a minimum of 25 slices, each 100 nm deep. From each imaging field, subsets of Z-stacks (273 pixels x 293 pixels x 25 slices) containing mitochondria from a single cell were chosen for analysis in ImageJ, following previously established methods [Chaudhry et al., 2020].
+
+These selected Z-stacks were considered as 'cell' for later analysis.
+
+The cell stacks underwent deconvolution using DeconvolutionLab2 in ImageJ, utilizing a theoretical Point-Spread Function (PSF) produced by the 'PSF generator' plugin.
+
+The Richardson-Lucy TV algorithm was applied, with:
+- A regularization value of 0.0001
+- 30 iterations
+
+This was consistent with the established method [Chaudhry et al., 2020].
+
+Post-deconvolution, the image edges were cropped to mitigate edge effects during deconvolution.
+
+The 3D stacks were then converted to 2D images via maximal projection.
+
+These 2D images were subsequently analyzed using the 'Mitochondrial Analyzer' plugin to assess cell morphology metrics. The analysis parameters included:
+- The 'weighted mean' threshold method
+- A block size of 1.45 microns
+- A C-value of 8
