@@ -1,0 +1,262 @@
+---
+title: "project"
+author: "yuanyuan"
+date: "May 1, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Step 1: organize phenotype
+```{r}
+#read in phenotypes
+phenotypes <- read.csv("phenotypes.csv",
+                       stringsAsFactors = F, header = T,row.names = 1)
+cat("The number of samples is: ",nrow(phenotypes),'\n')
+cat("The number of genes tested is:",ncol(phenotypes))
+
+#check the distribution of the phenotypes
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+ggplot(gather(phenotypes), aes(value)) + 
+    geom_histogram(bins = 10) + 
+    facet_wrap(~key, scales = 'free_x') +
+  labs(title="Phenotype Histogram for each gene")
+
+
+```
+## Step 2: Filter the SNPs
+```{r}
+genotypes <- read.csv("genotypes.csv",
+                      stringsAsFactors = F, header = T,row.names = 1)
+genoinfo <- read.csv('gene_info.csv',
+                     stringsAsFactors = F, header = T,row.names = 1)
+cat("Part C - the number of genotypes is: ", ncol(genotypes))
+
+
+#calculate MAF
+#code trunks from midterm sol by Olivia
+maf_calc <- function(x){
+  tab_x <- table(x)
+  af <- 1-((2*max(tab_x[names(tab_x) %in% c(0,2)])+sum(x==1))/(2*nrow(genotypes)))
+  return(af)
+}
+
+af <- apply(genotypes, 2, maf_calc)
+ggplot(data.frame(af),aes(af))+geom_histogram(bins=30)+
+  scale_x_continuous(breaks = seq(0,0.55,by=0.05))+
+  labs(x="Allele Frequency", title="Histogram of Allele Frequencies")
+
+
+#filter out MAF<0.05
+af_filter <- af[af>0.05]
+#none is filtered out
+
+```
+##Step 3: Stratification for the SNPs
+```{r}
+#install.packages("factoextra")
+
+
+#compute PCA
+geno_pca <- prcomp(genotypes, scale = TRUE)
+
+covar <- read.csv("covars.csv",
+                       stringsAsFactors = F, header = T,row.names = 1)
+#Show the percentage of variances explained by each principal component
+plot(geno_pca,type = 'l')
+plot(geno_pca$x[covar[, "Population"] == "GBR", 1], geno_pca$x[covar[, "Population"] == "GBR", 2], main = "Genotype PCA,Population", 
+     xlab = paste("PC1 (", 100*as.numeric(summary(geno_pca)$importance[, 1][2]), "%)", sep = ""),
+     ylab = paste("PC2 (", 100*as.numeric(summary(geno_pca)$importance[, 2][2]), "%)", sep = ""),
+     xlim = c(-65, 35), ylim = c(-60, 25), pch = 1)
+par(new = TRUE)
+plot(geno_pca$x[covar[, "Population"] == "FIN", 1], geno_pca$x[covar[, "Population"] == "FIN", 2], col = "red", xlim = c(-65, 35), ylim = c(-60, 25), xlab = "", ylab = "", pch = 2)
+par(new = TRUE)
+plot(geno_pca$x[covar[, "Population"] == "CEU", 1], geno_pca$x[covar[, "Population"] == "CEU", 2], col = "green", xlim = c(-65, 35), ylim = c(-60, 25), xlab = "", ylab = "", pch = 3)
+par(new = TRUE)
+
+
+plot(geno_pca$x[covar[, "Population"] == "TSI", 1], geno_pca$x[covar[, "Population"] == "TSI", 2], col = "blue", xlim = c(-65, 35), ylim = c(-60, 25), xlab = "", ylab = "", pch = 4)
+legend("bottomright", legend = c("GBR", "FIN", "CEU", "TSI"), col = c("black", "red", "green", "blue"), pch = c(1, 2, 3, 4))
+
+
+
+#PCA result plot based on the Gender
+plot(geno_pca$x[covar[, "Sex"] == "MALE", 1], geno_pca$x[covar[, "Sex"] == "MALE", 2], col = "red", xlim = c(-65, 35), ylim = c(-60, 25), xlab = "", ylab = "", pch = 2, main = 'Genotype PCA, gender')
+par(new = TRUE)
+plot(geno_pca$x[covar[, "Sex"] == "FEMALE", 1], geno_pca$x[covar[, "Sex"] == "FEMALE", 2], col = "grey", xlim = c(-65, 35), ylim = c(-60, 25), xlab = "", ylab = "", pch = 3)
+legend("bottomright", legend = c("MALE", "FEMALE"), col = c("red", "grey"), pch = c(2, 3))
+
+
+
+```
+
+##Step 4: linear regression without covariates
+```{r}
+library(MASS)
+#pval_calculator from midterm_sol
+pval_calculator_covar <- function(xa_input, pheno_input, z_input){
+    xa_input <- xa_input - 1
+    xd_input <- 1 - 2*abs(xa_input)
+    n_samples <- length(xa_input)
+    Z_mx <- cbind(1,z_input)                                                              
+    XZ_mx <- cbind(1,xa_input,xd_input,z_input)                                           
+    MLE_beta_theta0 <- ginv(t(Z_mx)  %*% Z_mx)  %*% t(Z_mx)  %*% pheno_input              
+    MLE_beta_theta1 <- ginv(t(XZ_mx) %*% XZ_mx) %*% t(XZ_mx) %*% pheno_input            
+    y_hat_theta0 <- Z_mx  %*% MLE_beta_theta0                                             
+    y_hat_theta1 <- XZ_mx %*% MLE_beta_theta1                                            
+    SSE_theta0 <- sum((pheno_input - y_hat_theta0)^2)                                    
+    SSE_theta1 <- sum((pheno_input - y_hat_theta1)^2)                                     
+    df_M <- 2
+    df_E <- n_samples - 3
+    Fstatistic <- ((SSE_theta0-SSE_theta1)/df_M) / (SSE_theta1/df_E)
+    pval <- pf(Fstatistic, df_M, df_E,lower.tail = FALSE)
+    return(pval)
+}
+#include population and sex as covariates, as well as first 10 PCs
+Z_input <- as.matrix(cbind(covar$Population == "FIN", 
+                           covar$Population == "CEU",
+                           covar$Population == "TSI", 
+                           covar$Sex == "FEMALE",
+                           geno_pca$x[, 1:10]))
+
+#store p values for each gene for each snp, nsample X nSNPs matrix
+pval <- matrix(0,nrow = ncol(phenotypes),ncol = ncol(genotypes))
+#test gene by genes
+for(i in 1:ncol(phenotypes)){
+  pval[i,] <- apply(genotypes,2, pval_calculator_covar,phenotypes[,i],Z_input)
+  
+}
+
+#p-value corrected for bournouli
+adjusted_p <- -log10(0.05/ncol(genotypes))
+
+
+library("cowplot")
+library(ggplot2)
+library(ggpubr)
+library(qqman)
+pval_plot <- data.frame(t(pval))
+#Manhattan plot
+p1 <- ggplot(pval_plot,aes(1:nrow(pval_plot),-log10(X1))) +
+  geom_point() +
+  labs(x="Variant",y="-log10(pval)",title=paste("Manhattan Plot,gene 1",colnames(phenotypes)[1]))+
+  geom_hline(yintercept=adjusted_p,color = "red")+
+  theme(plot.title = element_text(size=10))
+
+#Q-Q plot
+qqDf1 <- data.frame(exp = sort(pval_plot[,1]),theo = sort(qunif(ppoints(nrow(pval_plot)))))
+q1 <- ggplot(qqDf1,aes(-log10(theo), -log10(exp)))+geom_point()+
+  geom_abline(slope = 1, color = "red")+
+  labs(title="QQ-Plot,gene 1",x="-log10(theoretical pvals)",y="-log10(acquired pvals)")+
+  theme(plot.title = element_text(size=10))
+q1
+ggarrange(p1,q1 + rremove("x.text"), 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+
+snp_info <- read.csv('SNP_info.csv',
+                     stringsAsFactors = F, header = T)
+summary_snpinfo_p <- cbind(snp_info, pval_plot[,1])
+colnames(summary_snpinfo_p) <- c("CHR", "BP", "SNP", "P")
+
+
+p1 <- manhattan(x = summary_snpinfo_p, genomewideline = -log10(0.05 / ncol(genotypes)), suggestiveline = FALSE, col = c("blue4", "orange3"), annotatePval = 0.05 / ncol(genotypes), annotateTop = TRUE, main = paste("Manhattan Plot,", colnames(phenotypes)[1], sep = ""))
+q1 <- qq(summary_snpinfo_p$P,main=paste("QQ Plot,", colnames(phenotypes)[1], sep = ""))
+
+
+
+summary_snpinfo_p2 <- cbind(snp_info, pval_plot[,2])
+colnames(summary_snpinfo_p2) <- c("CHR", "BP", "SNP", "P")
+p2 <- manhattan(x = summary_snpinfo_p2, genomewideline = -log10(0.05 / ncol(genotypes)), suggestiveline = FALSE, col = c("blue4", "orange3"), annotatePval = 0.05 / ncol(genotypes), annotateTop = TRUE, main = paste("Manhattan Plot,", colnames(phenotypes)[2], sep = ""))
+q2 <- qq(summary_snpinfo_p2$P,main=paste("QQ Plot,", colnames(phenotypes)[2], sep = ""))
+
+summary_snpinfo_p3 <- cbind(snp_info, pval_plot[,3])
+colnames(summary_snpinfo_p3) <- c("CHR", "BP", "SNP", "P")
+p3 <- manhattan(x = summary_snpinfo_p3, genomewideline = -log10(0.05 / ncol(genotypes)), suggestiveline = FALSE, col = c("blue4", "orange3"), annotatePval = 0.05 / ncol(genotypes), annotateTop = TRUE, main = paste("Manhattan Plot,", colnames(phenotypes)[3], sep = ""))
+p4 <- qq(summary_snpinfo_p3$P,main=paste("QQ Plot,", colnames(phenotypes)[3], sep = ""))
+
+summary_snpinfo_p4 <- cbind(snp_info, pval_plot[,4])
+colnames(summary_snpinfo_p4) <- c("CHR", "BP", "SNP", "P")
+manhattan(x = summary_snpinfo_p4, genomewideline = -log10(0.05 / ncol(genotypes)), suggestiveline = FALSE, col = c("blue4", "orange3"), annotatePval = 0.05 / ncol(genotypes), annotateTop = F, main = paste("Manhattan Plot,", colnames(phenotypes)[4], sep = ""))
+qq(summary_snpinfo_p4$P,main=paste("QQ Plot,", colnames(phenotypes)[4], sep = ""))
+
+summary <- cbind(snp_info, pval_plot[,'X5'])
+colnames(summary) <- c("CHR", "BP", "SNP", "P")
+manhattan(x = summary, genomewideline = -log10(0.05 / ncol(genotypes)), suggestiveline = FALSE, col = c("blue4", "orange3"), annotatePval = 0.05 / ncol(genotypes), annotateTop = F, main = paste("Manhattan Plot,", colnames(phenotypes)[5], sep = ""))
+qq(summary$P,main=paste("QQ Plot,", colnames(phenotypes)[5], sep = ""))
+
+
+
+p2 <- ggplot(pval_plot,aes(1:nrow(pval_plot),-log10(X2))) +
+  geom_point() +
+  labs(x="Variant",y="-log10(pval)",title=paste("Manhattan Plot for gene 2",colnames(phenotypes)[2]))+
+  geom_hline(yintercept=adjusted_p,color = "red")
+
+
+
+p3 <- ggplot(pval_plot,aes(1:nrow(pval_plot),-log10(X3))) +
+  geom_point() +
+  labs(x="Variant",y="-log10(pval)",title=paste("Manhattan Plot for gene 3",colnames(phenotypes)[3]))+
+  geom_hline(yintercept=adjusted_p,color = "red")
+p3
+p4 <- ggplot(pval_plot,aes(1:nrow(pval_plot),-log10(X4))) +
+  geom_point() +
+  labs(x="Variant",y="-log10(pval)",title=paste("Manhattan Plot for gene 4",colnames(phenotypes)[4]))+
+  geom_hline(yintercept=adjusted_p,color = "red")
+p4
+p5 <- ggplot(pval_plot,aes(1:nrow(pval_plot),-log10(X5))) +
+  geom_point() +
+  labs(x="Variant",y="-log10(pval)",title=paste("Manhattan Plot for gene 5",colnames(phenotypes)[5]))+
+  geom_hline(yintercept=adjusted_p,color = "red")
+p5
+
+```
+
+
+
+##Step 5: report the region of the significant SNPs
+```{r}
+#find the snp positions in the chromosome 5 for the EARP gene
+snp_info[-log10(pval_plot[,1])>6,]
+
+#calculate LD for the gene
+
+LD_snp <- genotypes[,which(snp_info$chromosome==5&snp_info$position<(97035174+40000)&snp_info$position<(96868550-40000))]
+#install.packages('genetics')
+library(genetics)
+LD(LD_snp)
+
+install.packages('gaston')
+require(gaston)
+?as.bed.matrix
+LD.plot(LD(as.bed.matrix(as.matrix(genotypes)), c(16755, 16803)), 
+        snp_info[16755:16803, "position"]
+        )
+
+
+snp_info[16700,]
+snp_info[16900,]
+
+
+#for PEX6 gene
+snp_info[-log10(pval_plot[,2])>6,]
+LD.plot(LD(as.bed.matrix(as.matrix(genotypes)), c(19266, 19293)), 
+        snp_info[19266:19293, "position"]
+        )
+
+
+#for GFM1
+snp_info[-log10(pval_plot[,3])>6,]
+LD.plot(LD(as.bed.matrix(as.matrix(genotypes)), c(41937, 41947)), 
+        snp_info[41937:41947, "position"]
+        )
+
+
+```
