@@ -1,4 +1,5 @@
 
+
 #Modules used to create a fasta file that contains sequences of antibiotic gene of interest from all Staphyloccus species
 #This fasta file is compatabile with MEGA and was used for alginnment before phylogenetic analysis
 import os
