@@ -1,0 +1,262 @@
+---
+title: "yw867_Midterm"
+author: "Yuanyuan Wu"
+date: "4/14/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.
+
+```{r}
+#import id and phenotype(bp)
+id_bp <- read.csv('midterm2019_pheno+pop.csv',header = FALSE)
+
+#b.calculate and report total sample size n
+n <-  nrow(id_bp)
+(n)
+
+#c. plot histogram, label
+hist(id_bp[,2],xlab = 'bp data',ylab = 'freq',main = paste("Histogram of" , 'blood pressure'))
+```
+
+###1d.
+The shape of the histgram has two peaks while the 'normal distribution' has only one peak. The two peaks probably result from the two populations with differenr means that are mixed together. The two mixed populations are likely of normal distribution seperately and linear regression with covariate can be used.
+
+###1e.
+The phenotype(blood pressure) is not case/control situation with multiple scattered values.
+
+
+
+## 2.
+
+```{r }
+#a. import genotype data
+geno <- read.csv('midterm2019_genotypes_v2.csv',header = FALSE)
+
+#b. number of SNPs:N
+N <- ncol(geno)
+(N)
+
+#c.MAF
+#calculate all the allefrequency for the allele represented by '0'
+#initiate a1 to store freq of allele '0'
+a1 <- rep(0,N)
+a1 <- (colSums(geno==0)*2+colSums(geno==1))/(2*n)
+
+#change into '2' as minor allele if frequency >0.5
+
+a2_ind <- which(a1>0.5)
+
+a1[a2_ind] <- 1-a1[a2_ind]
+
+#eliminate <- which(a1<0.1)
+#hist MAF
+hist(a1,main = 'MAF histogram',xlab = 'MAF')
+```
+
+
+###2d. 
+'power' of a hypothesis test:
+the probability of the test that rejects the NULL when the alternative hypothesis is true. Type 1 error is the probability of incorrectly rejecting the null hypothesis when it is correct.
+
+###2e.
+if the MAF of a specific SNP differ in the two populations, the p of the SNP is likely low, which result in the rejection of the NULL when it is not a causal SNP(false positive)
+
+
+##3
+```{r}
+#3a
+#calculcate p, without cvariate
+#geno to XaXd
+XaXd <- function(geno){
+  #number of samples
+  n <- nrow(geno)
+  #number of SNPs
+  N <- ncol(geno)
+  
+  Xa <- matrix(NA,nrow = n,ncol = N)
+  #initializa Xd with -1s for homozygotes
+  Xd <- matrix(-1,nrow = n,ncol = N)
+  
+  #assign values to the heterozygotes
+  Xa[which(geno==1)] <- 0
+  Xd[which(geno==1)] <- 1
+  
+  ##assume 0 is the homozygote for minor allele
+  Xa[which(geno==0)] = 1
+  Xa[which(geno==2)] = -1
+  
+  #calculate all the allefrequency for the allele represented by '0'
+  #initiate a1 to store freq of allele '0'
+  a1 <- rep(0,N)
+  a1 <- (colSums(geno==0)*2+colSums(geno==1))/(2*n)
+
+  #change into '2' as minor allele if frequency >0.5
+  a2_ind <- which(a1>0.5)
+  
+  ##correct by allele frequency, if 2 is the minor allele
+  Xa[,a2_ind] <- -Xa[,a2_ind]
+  
+  return(list(Xa=Xa,Xd=Xd))
+  
+}
+
+
+
+#Y: the value of phenotypes in a nx1 matrix
+MLE <- function(Y,Xa,Xd){
+  #n: sample numbers
+  n = nrow(Xa)
+  #N: sites
+  N = ncol(Xa)
+  #initiation beta estimators in 3*N matrix
+  Beta <- matrix(0,nrow = 3,ncol = N)
+  #matrix y: n*1 
+  #Y <- matrix(y,ncol = 1)
+  
+  for(i in 1:N){
+      #matrix X: nx3
+    X <- matrix(c(rep(1,n),Xa[,i],Xd[,i]),byrow = FALSE, nrow = n,ncol = 3)
+    #print(X)
+    #beta = (xTx)-1xTy
+    #print(i)
+    #print(det(crossprod(X)))
+    Beta[,i] <- solve(crossprod(X),t(X))%*%Y
+    
+    #assaign new value
+  }
+  
+    for(i in 1:N){
+      #matrix X: nx3
+    X <- matrix(c(rep(1,n),Xa[,i],Xd[,i]),byrow = FALSE, nrow = n,ncol = 3)
+    #beta = (xTx)-1xTy
+
+    Beta[,i] <- solve(crossprod(X),t(X))%*%Y
+    #assaign new value
+  }
+  return(Beta)
+  
+  
+  return(Beta)
+  
+}
+
+pval_calculator <- function(pheno_input, xa_input, xd_input){
+  
+  n_samples <- length(xa_input)
+  
+  X_mx <- cbind(1,xa_input,xd_input)
+  
+  MLE_beta <- ginv(t(X_mx) %*% X_mx) %*% t(X_mx) %*% pheno_input
+  y_hat <- X_mx %*% MLE_beta
+  
+  SSM <- sum((y_hat - mean(pheno_input))^2)
+  SSE <- sum((pheno_input - y_hat)^2)
+  df_M <- 2
+  df_E <- n_samples - 3 
+  
+  MSM <- SSM / df_M
+  MSE <- SSE / df_E
+  
+  Fstatistic <- MSM / MSE
+  
+  pval <- pf(Fstatistic, df_M, df_E,lower.tail = FALSE)
+  
+  return(pval)
+}
+
+#calculate F
+#input yi,Xa,Xd,Beta
+F_test <- function(yi,Xa,Xd,Beta){
+  #n: sample numbers
+  n = nrow(Xa)
+  #N: sites
+  N = ncol(Xa)
+  
+  #inititate estimated yi'
+  yi_est <- matrix(0,nrow = n,ncol=N)
+  #SSM
+  ssm = rep(0,N)
+  #sse
+  sse = rep(0,N)
+  for(j in 1:N){
+    yi_est[,j] <- Beta[1,j]+Beta[2,j]*Xa[,j]+Beta[3,j]*Xd[,j]
+    ssm[j] = sum((yi_est[,j]-mean(yi))^2)
+    sse[j] = sum((yi-yi_est[,j])^2)
+  }
+  msm = ssm/2
+  mse = sse/(n-3)
+  #return F
+  return(msm/mse)
+  
+}
+geno_el <- geno[,-eliminate]
+xaxd <- XaXd(geno)
+Xa <- xaxd$Xa
+Xd <- xaxd$Xd
+Xa[1:10,1:10]
+Y <- matrix(id_bp[,2],ncol = 1)
+
+betas <- MLE(Y,Xa,Xd)
+
+```
+##4
+QQ plot
+
+
+##5
+```{r}
+#a. report n1,n2
+pop1 <- id_bp[which(substr(id_bp[,1],1,2)=='HG'),]
+pop2 <- id_bp[which(substr(id_bp[,1],1,2)=='NA'),]
+n1 <- nrow(pop1)
+n2 <- nrow(pop2)
+(c(n1,n2))
+
+
+```
+###5b.
+a PCA will tell the major differnces factors in the population and grouping the population. Population of differnt ancestries can be distinguished with PCA since they ar e likely to be distinguished in the PCA.
+
+##6
+```{r}
+#linear regression with covariates
+#set up Xz
+Xz <- matrix(1,nrow = n, ncol = 1)
+Xz[which(substr(id_bp[,1],1,2)=='HG'),1] <- -1
+MLE_xz <- function(Y,Xa,Xd,Xz){
+  #n: sample numbers
+  n = nrow(Xa)
+  #N: sites
+  N = ncol(Xa)
+  #initiation beta estimators in 3*N matrix
+  Beta <- matrix(0,nrow = 4,ncol = N)
+  #matrix y: n*1 
+  #Y <- matrix(y,ncol = 1)
+  
+  for(i in 1:N){
+      #matrix X: nx3
+    X <- matrix(c(rep(1,n),Xa[,i],Xd[,i],Xz),byrow = FALSE, nrow = n,ncol = 4)
+    #print(X)
+    #beta = (xTx)-1xTy
+    #print(i)
+    #print(det(crossprod(X)))
+    Beta[,i] <- solve(crossprod(X),t(X))%*%Y
+    
+    #assaign new value
+  }
+  return(Beta)
+  
+}
+MLE_xz(Y,Xa,Xd,Xz)
+
+```
+##7
+##8
+##9
+##10
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

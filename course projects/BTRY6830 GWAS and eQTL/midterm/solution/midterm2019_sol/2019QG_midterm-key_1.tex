@@ -1,0 +1,160 @@
+\documentclass[letterpaper, 11pt]{article}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\usepackage{setspace}
+\usepackage{paralist}
+\usepackage{amsmath}
+\usepackage{epsfig,psfrag}
+\usepackage{moreverb}
+\usepackage{color}
+
+
+\renewcommand{\labelenumi}{(\theenumi)}
+
+\pdfpagewidth 8.5in
+\pdfpageheight 11in
+
+\setlength\topmargin{0in}
+\setlength\leftmargin{0in}
+\setlength\headheight{0in}
+\setlength\headsep{0in}
+\setlength\textheight{9in}
+\setlength\textwidth{6.5in}
+\setlength\oddsidemargin{0in}
+\setlength\evensidemargin{0in}
+\setlength\parindent{0in}
+\setlength\parskip{0.13in} 
+ 
+\title{Quantitative Genomics and Genetics - Spring 2019 \\
+BTRY 4830/6830; PBSB 5201.01}
+\author{Midterm - available, Fri., April 12 - Key}
+\date{{\bf Midterm exam due before 11:59PM, Sun., April 14}}
+
+\begin{document}
+
+\vspace{-20in}
+
+\maketitle
+
+{\bf PLEASE NOTE THE FOLLOWING INSTRUCTIONS:}
+
+\begin{itemize}
+\item[1.] You are to complete this exam alone. The exam is open book, so you are allowed to use any books or information available online, your own notes and your previously constructed code, etc.  \textbf{HOWEVER YOU ARE NOT ALLOWED TO COMMUNICATE OR IN ANY WAY ASK ANYONE FOR ASSISTANCE WITH THIS EXAM IN ANY FORM} (the only exceptions are Olivia, Scott, and Dr. Mezey).  As a non-exhaustive list this includes asking classmates or ANYONE else for advice or where to look for answers concerning problems, you are not allowed to ask anyone for access to their notes or to even look at their code whether constructed before the exam or not, etc.  You are therefore only allowed to look at your own materials and materials you can access on your own.  In short, work on your own!  Please note that you will be violating Cornell's honor code if you act otherwise.
+
+\item[2.] Please pay attention to instructions and complete ALL requirements for ALL questions, e.g. some questions ask for R code, plots, AND written answers.  We will give partial credit so it is to your advantage to attempt every part of every question.  
+
+\item[3.] A complete answer to this exam will include R code answers in Rmarkdown, where you will submit your .Rmd script and associated .pdf file.  Note there will be penalties for scripts that fail to compile (!!).  Also, as always, you do not need to repeat code for each part (i.e., if you write a single block of code that generates the answers for some or all of the parts, that is fine, but do please label your output that answers each question!!).  You should include all of your plots and written answers in this same .Rmd script with your R code.  
+
+\item[4.] The exam must be uploaded on CMS before 11:59PM Sun., April 14.  It is your responsibility to make sure that it is in uploaded by then and no excuses will be accepted (power outages, computer problems, Cornell's internet slowed to a crawl, etc.).  Remember: you are welcome to upload early!  We will deduct points for being late for exams received after this deadline (even if it is by minutes!!).
+\end{itemize}
+
+\pagebreak
+
+Your collaborator is interested in mapping genetic loci that can affect Blood Pressure (BP) in humans.  They know there are loci scattered throughout the genome that can affect BP, but they do not know the locations of these loci, so they have performed a GWAS experiment and they would like you to perform the analysis.  They have collected data for a number of individuals from two populations representing distinct ancestry groups.  They have provided you the following data: scaled BP phenotypes and population assignment (`midterm2019\_pheno+pop.csv'), and SNP genotypes (`midterm2019\_genotypes.csv').  In the file containing phenotypes and population assignments, the first column indicates the sample ID of each individual and the second column the scaled BP measurements for that individual (i.e., row 1 contains the ID for the first individual and the BP for the first individual, row 2 contains the sample ID and BP for the second individual, etc.).  Note that the population assignment for each individual is also indicated in the sample ID column of this file, where every individual with a sample ID starting with `HG' is in the first population and every individual with a sample ID starting with `NA' is in the second population.  In the file containing the SNP genotypes, the genotype state for a homozygote is coded as either `0' or `2' and heterozygote is coded as `1'.  In this file each column represents a specific SNP (column 1 = SNP 1, column 2 = SNP 2) and each row represents all of the SNP genotype states for an individual for the entire set of SNPs (row 1 = all of the first individual's genotypes, rows 2 = all of the second individual's genotypes, etc.).  Also note that the SNPs in the file are listed in order along the genome such that the first SNP is `SNP 1' and the last is `SNP \textit{N}'.
+
+\begin{itemize} 
+\item[1.] \textbf{(a)} Import the sample ID and BP data from the file `midterm2019\_pheno+pop.csv', \textbf{(b)} Calculate and report the total sample size \textit{n}, \textbf{(c)} Plot a histogram of the BP phenotypes (label your plot and your axes using informative names!), \textbf{(d)} The shape of your histogram will deviate some from a normal distribution.  Using no more than two sentences, provide a qualitative explanation for how the shape of this histogram deviates from a normal distribution (i.e., describe in words how it deviates) and also explain from the information provided to you about the GWAS data, what might explain this deviation and why a linear regression may still be appropriate for analyzing these GWAS phenotypes (i.e., again, explain in words / no analysis!), \textbf{(e)} Using no more than one sentence, provide ONE reason why a logistic regression would NOT be appropriate for analyzing these GWAS phenotypes.
+\\
+\\
+ \textcolor{red}{ 
+\textbf{(1d)} Among the acceptable answers: The histogram of the phenotypes looks like it has two peaks instead of one, and therefore looks bimodal or like two normal distributions that overlap, where this could be attributable to the individuals in this sample being taken from two different populations, which we could surmise have very different means for the phenotype.  A linear regression could still be appropriate for these data even if the overall phenotype histogram looks bimodal, since the overall probability model for a genetic regression is a normal distribution for distinct groups (determined by the independent X variables) each with a different overall mean, such that inclusion of a covariate appropriately coded X for population in the regression model could produce an appropriate model with mean shifted populations that are normally distributed (or conversely, if the impact of population were removed by modeling the population structure as a covariate, the phenotype would be expected to look normal).
+\\
+\\
+\textbf{(1e)}  Any one of the following answers (and others are possible): (1) The phenotype does not fall into discrete classes, (2) The phenotype does not follow a discrete (e.g., Bernoulli error) rather a normal error, (3) The phenotype relationship with the independent variables does not appear to follow a logistic curve relationship.} 
+
+\item[2.] \textbf{(a)} Import the genotype data from the file `midterm2019\_genotypes.csv', \textbf{(b)} Calculate and report the number of SNPs \textit{N}, \textbf{(c)} Calculate the minor allele frequency (MAF) for each SNP and plot a histogram of these MAF values (NOTE: that the minor allele homozygotes may be encoded with 0 or 2, depending on which SNP you are considering.  Also, please label your plot and your axes using informative names!). \textbf{(d)} Provide a rigorous definition of the `power' of a hypothesis test, \textbf{(e)} If you were to somehow perform a genetic linear regression hypothesis test on a causal SNP directly, explain to your collaborator how you would expect the MAF of this causal SNP to impact the power of the test (i.e., your answer should be a simple description of how power relates to allele frequency). 
+\\
+\\
+ \textcolor{red}{ 
+\textbf{(2d)} Power is defined as the probability of correctly rejecting the null hypothesis in a statistical test when the null hypothesis is false.
+\\
+\\
+\textbf{(2e)} Full credit given for a simple answer such as: We expect the power to be related to the MAF, with lower power for a lower MAF and higher power for a higher MAF.  A more complex answer may note that having a lower MAF means that your sample size for one of the genotypes is vastly lower than the others.  This randomly drawn group may then have characteristics that are unrepresentative of the full distribution - similar to how any small sample size has a greater variance around the true mean of the distribution.  The association however, will assume this small sample to well-represent the true distribution, thereby drawing a possibly false conclusion.
+}
+
+\item[3.]  \textbf{(a)} Using the phenotype and genotype data you have imported in `1a' and `2a', for each genotype, calculate p-values for the null hypothesis $H_0: \beta_a = 0 \cap \beta_d=0$ versus the alternative hypothesis $H_A: \beta_a \neq 0 \cup \beta_d \neq 0$ when applying a genetic linear regression model with NO covariates.  NOTE (!!): in your linear regressions, DO use the $X_a$ and $X_d$ codings provided in classand DO NOT use the function lm() to calculate your p-values but rather calculate the $MLE(\hat{\beta})$ using the formula provided in class, calculate the predicted value of the phenotype $\hat{y}_i$ for each individual $i$ under the null and alternative and use these to calculate SSM and SSE, and use the formulas for MSM and MSE to calculate the F-statistic, although you may use the function pf() to calculate the p-value for each F-statistic you calculate. \textbf{(b)} Produce a Manhattan plot for these p-values (label your plot and your axes using informative names!).  
+
+\item[4.]  \textbf{(a)} Produce a Quantile-Quantile (QQ) plot for the p-values you produced in `3a'.  \textbf{(b)} Using no more than three sentences, explain to your collaborator whether you think the analysis you have applied resulted in appropriate model fit to these GWAS data based on the shape of this QQ plot and provide an explanation for why, if your explanation is correct, you would expect a QQ plot with the observed shape.
+\\
+\\
+ \textcolor{red}{ 
+\textbf{(4b)} Among the acceptable answers: The QQ plot leaves the 45 degree line very early, indicating that the statistical model applied individually to each genotype produced too many low p-values than expected if the null hypothesis were correct for the majority of genotypes and that we did not achieve an appropriate fit, since we expect the null hypothesis to be correct for the majority of genotypes if we achieved appropriate model fit for our GWAS data.  We could expect a QQ plot of this type if we had an unaccounted for covariate such as unaccounted for populations structure, i.e., two populations with distinct phenotype means and different frequencies of alleles for many of the genotypes, such that a statistical model fit without a population covariate would effectively result in a statistical test for whether the genotypes differed in frequency between the two populations and not whether a genotype was in LD with a causal genotype.  Given that we know there are two populations represented in this sample, this seems like a reasonable explanation for the shape of the QQ.
+} 
+
+\item[5.] \textbf{(a)} From the sample IDs you imported from the file `midterm2019\_pheno+pop.txt', calculate and report the number of individuals in the first population $n_1$ and in the second population $n_2$ (where $n_1 + n_2 = n$).  \textit{ HINT: Try using the }\textbf{substr()} \textit{function to extract a chunk of a string based on the positions of the characters. For example, } substr( `a substring' , 3, 5 ) \textit{ will take the 3rd through 5th characters of the string in the first argument, returning the string `sub' as the output.} \textbf{(b)} Using no more than two sentences, provide an intuitive explanation to your collaborator as to why a PCA could have been used to show that the individuals in this sample represent two populations with distinct ancestries if you did not have this population information in the data (NOTE: you do not need to run a PCA!).
+\\
+\\
+ \textcolor{red}{ 
+\textbf{(5b)} Among the acceptable answers: A PCA can intuitively be considered a rotation of axes for highly multivariate data, such that if the data were projected on to the first new axis / PC this would produce the greatest possible variance of all possible new axes, the next PC would be orthogonal to the first and be the next greatest variance, etc.  Since individuals in distinct populations will tend to `separate' or `cluster' the samples into two groups in such a multivariate plot, the first PC will tend to point in the direction of these clusters (i.e., clusters at different ends of the PC) since this will produce high variance along the PC, which allows us to visually separate the two clusters once plotted on the first couple of PCs.
+} 
+
+\item[6.] \textbf{(a)} Using the phenotype, population, and genotype data you have imported in `1a' and `2a', for each polymorphism, calculate p-values for the null hypothesis $H_0: \beta_a = 0 \cap \beta_d=0$ versus the alternative hypothesis $H_A: \beta_a \neq 0 \cup \beta_d \neq 0$ when applying a genetic linear regression model with WITH A COVARIATE $X_Z$ that codes each of the $n_1$ individuals as `-1' and the $n_2$ individuals as `1'.  NOTE (!!): in your linear regressions, DO use the $X_a$ and $X_d$ codings provided in class along with your $X_Z$ dummy variable and DO NOT use the function lm() to calculate your p-values but rather calculate the $MLE(\hat{\beta})$ using the formula provided in class, calculate the predicted value of the phenotype $\hat{y}_i$ for each individual $i$ under the null and alternative and use these to calculate SSE($\hat{\theta}_0$) and SSE($\hat{\theta}_1$), and use these to calculate the F-statistic, although you may use the function pf() to calculate the p-value for each F-statistic you calculate. \textbf{(b)} Produce a Manhattan plot for these p-values (label your plot and your axes using informative names!).  
+
+\item[7.]  \textbf{(a)} Produce a Quantile-Quantile (QQ) plot for the p-values you produced in `6a'.  \textbf{(b)} Using no more than three sentences, explain to your collaborator whether you think the analysis you have applied resulted in appropriate model fit to these GWAS data based on the shape of this QQ plot and an explanation as to why the QQ plot has the observed shape.
+\\
+\\
+\textcolor{red}{ 
+\textbf{(7b)} Among the acceptable answers: The QQ plot hugs the 45 degree line for most of the (smaller) log 10 p-values and then has a `tail' of higher log 10 p-values that leave the 45 degree line at the end, which is exactly the distribution of p-values we should expect if for most of genotypes the null hypothesis is correct and the null is not correct for one or just a few genotypes that are in LD with causal genotypes.  This is exactly what we would expect to see if we achieved appropriate statistical model fit for our GWAS.
+} 
+
+\item[8.] \textbf{(a)} For the p-values you produced in `6a' when controlling the study-wide type 1 error of 0.05, report the appropriate p-value cutoff for assessing which genetic markers are significant when using a Bonferroni correction and provide the formula you used to calculate this cutoff.  \textbf{(b)} Given the Manhattan plot in `6a', report how many separate peaks you observe that are greater than the Bonferroni corrected cutoff and, using no more than two sentences, provide a description of the criteria you used to determine the number of separate peaks.  \textbf{(c)}  Using no more than two sentences, explain to your collaborator how many causal polymorphisms you believe each of these separate peaks are indicating and why.  \textbf{(d)}  Using no more than two sentences, explain to your collaborator why these peaks likely ONLY indicate the positions of causal polymorphisms and why it may not be possible to determine the exact causal polymorphisms that are impacting BP from these GWAS data / your analysis.
+\\
+\\
+\textcolor{red}{ 
+\textbf{(8b)} Many answers possible as long as they are justified, among the acceptable answers: I observed two separate peaks using the criteria that a set of p-values in order along the chromosome that were all above / do not fall below the Bonferroni cutoff indicate a peak, i.e., the two peaks are separated by genotypes with p-values that fall below the cutoff.
+\\
+\\
+\textbf{(8c)} Many answers possible as long as they are justified, including (possibly zero, one total, one each, several per peak) e.g., example of an acceptable answer: I believe each peak indicates one causal polymorphism because in humans, sets of genotypes are generally in close enough LD to tag a single causal polymorphism with a large enough effect to detect in a GWAS and such causal polymorphisms appear to be scattered throughout the genome / not in LD with each other.
+\\
+\\
+\textbf{(8d)} Among the acceptable answers: Since we expect to reject the null hypothesis for a statistical test of association for any non-causal genotype in LD with a causal genotype, and since many genotypes are expected to be in LD (i.e., in the same physical genomic location) with each other, plus even if the causal genotype is measured (i.e., not always the case) it may not produce the most significant p-value, we cannot determine which of the genotypes for which we have rejected the null is the causal genotype with certainty. 
+} 
+
+
+\item[9.] \textbf{(a)} For each of these separate peaks you identified in `8b', list the p-value of the most significant SNP in the peak and number of this SNP (i.e., each genotype you list will have a number between 1 and $N$ where remember the SNPs are provided in order).   \textbf{(b)} Using no more than two sentences, provide ONE explanation as to why the most significant SNP in each peak is not necessarily closest to a causal polymorphism when considering all of the SNPs you have analyzed.  \textbf{(c)} For each peak, for the most significant SNP in the peak, use the $X_a$ coding of this SNP and calculate the correlation with the (closest) SNP on either side using their respective $X_a$ codings. \textbf{(d)} Using no more than two sentences, explain why it makes sense that these correlations are not that close to `0' given what you know about linkage disequilibrium (LD). 
+\\
+\\
+\textcolor{red}{ 
+\textbf{(9b)} Many possible answers where any one from the following (non-exhaustive) list will be accepted:
+\begin{enumerate}
+\item By chance, the phenotypes are more strongly associated with a tag SNP than the causal SNP.
+\item An error in measuring some of the phenotypes, resulted in the phenotypes being more strongly associated with a tag SNP than the causal SNP.
+\item The causal SNP has a smaller MAF than the tag SNP (and the right structure of LD exists to produce a slightly smaller p-value for the tag) 
+\item There was a genotyping error that changed the value of a few of the causal SNP genotypes, leading to a less significant p-value.
+\item An unaccounted for or partially accounted for covariate is more correlated with the tag than the causal SNP.
+\item A tag SNP is tagging two or more causal genotypes
+\end{enumerate}
+
+\textbf{(9d)} Among the acceptable answers: Since the result of LD is that genotypes in LD will tend to have the same state in an individual, no matter how we code the dummy X variables for these genotypes, we expect either large values of the X's to occur more frequently with each other and small values of the X's to occur more frequently with each other than large with small, producing a large positive value for the correlation, or for large values of X to occur with small values of X but not large with large or small with small, producing a large negative correlation, i.e., for neither outcome would we expect a correlation near zero. 
+} 
+
+\item[10.] \textbf{(a)} Provide a rigorous definition of a causal polymorphism.  \textbf{(b)} Using no more than two sentences, describe an ideal experiment (not necessarily realistic!) for demonstrating that a polymorphism is causal. \textbf{(c)} Provide a rigorous definition of a p-value.  \textbf{(d)} Provide three reasons why it could be that in a case where you reject a null hypothesis for a polymorphism in a GWAS there will be no causal polymorphism in the genomic location of the polymorphism you analyzed (i.e., explain why the polymorphism for which you reject the null hypothesis could be a biological false positive).
+\\
+\\
+\textcolor{red}{ 
+\textbf{(10a)} Among the acceptable answers: A causal polymorphism for a given phenotype is a polymorphic site in the genome where directly swapping one allele for another produces a change in value of the phenotype under some condition (or symbolically $A_1 \rightarrow A_2 \Rightarrow \Delta Y$).
+\\
+\\
+\textbf{(10b)} Many possible answers, an example of an acceptable answer: A CRISPR experiment performed one of an identical twin to swap one allele of the putative causal polymorphism for the other, where the twins were then raised under exactly the same conditions and BP was measured at the same timepoint.
+\\
+\\
+\textbf{(10c)} p-value - the probability of obtaining the observed value of the test statistic or more extreme conditional on the null hypothesis being true.
+\\
+\\
+\textbf{(10d)} Many possible answers where any three from the following (non-exhaustive) list will be accepted:
+\begin{enumerate}
+\item Type I error 
+\item Genotyping error
+\item Phenotyping error
+\item Coding or other mistake in the analytics
+\item Disequilibrium without linkage disequilibrium
+\item Unaccounted for covariate
+\end{enumerate}
+} 
+
+
+\end{itemize}
+
+\end{document}
