@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
 
+
+
 # Script for computing h_{Y_n} given n and the probabilities of observing 1-6.
 # Arguments:
 #    n - integer representing the number of observations
