@@ -1,1 +1,7 @@
-1. download from nra repositories
+1) Download sra files with sratoolkit
+2) Fastqdump into fastq files
+   Theoretically the solid reads should not use fastqdump, but abi-dump instead. But i checked the results,
+the reads are the same, just there are misterious C within the reads. So I removed all the Cs in the fastq
+files with C script. 
+    Alternatively, it can be down with: abidump and solid2fastq scripts. The final fastq results are the same.
+3) Reads mapping with Shrimp2.
