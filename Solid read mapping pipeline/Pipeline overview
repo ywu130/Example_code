@@ -8,3 +8,13 @@ files with C script.
    Refer to shrimp2 documentation for more details about the command: https://github.com/compbio-UofT/shrimp/blob/master/README
 The command I used:
 
+time gmapper-cs -L referenceData/rnafasta/gencode.v46.transcripts-cs \
+-1 fastq/lastGremoved/processed/SRR1204091-p.fastq.gz \
+  -2 fastq/lastGremoved/processed/SRR1204092-p.fastq.gz \
+-N 16 -p opp-in -Q  \
+--strata --single-best-mapping --all-contigs \
+--min-avg-qv 20 \
+>samfiles/9192_map.mini.sam 2>samfiles/9192_map.mini.log
+
+Note
+
