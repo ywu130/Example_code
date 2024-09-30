@@ -5,3 +5,6 @@ the reads are the same, just there are misterious C within the reads. So I remov
 files with C script. 
     Alternatively, it can be down with: abidump and solid2fastq scripts. The final fastq results are the same.
 3) Reads mapping with Shrimp2.
+   Refer to shrimp2 documentation for more details about the command: https://github.com/compbio-UofT/shrimp/blob/master/README
+The command I used:
+
